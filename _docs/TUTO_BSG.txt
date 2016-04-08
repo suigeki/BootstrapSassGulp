@@ -1,0 +1,323 @@
+**********************************************
+////////// TUTO BOOTSTRAP SASS GULP \\\\\\\\\
+**********************************************
+
+1 - Installation de nodeJs/Git for Windows/Bower
+2 - On créer un nouveau project HTML5 depuis des sources existantes
+3 - On créer les répertoires selon l'architecture Symfony
+	AppBundle/Resources/views
+	web
+4 - On ouvre le .bowerrc et on spécifie là où seront stockés les packages téléchargés
+	{
+    		"directory" : "AppBundle/Resources/bower_components",
+    		"json" : "bower.json"
+	}
+5 - On charge la page du site bower.io > Search packages et on recherche  sass-bootstrap
+6 - Avec la console de commande, on point sur le répertoire racine du projet
+7 - On tape l'installation depuis le nom du package référencé dans bower.io
+	bower install bootstrap-sass
+8 - On crée le fichier de dépendances bower.json avec l'invite de commande
+	bower init
+	name _enter
+	description _enter
+	main file _enter
+	what types of modules... _enter
+	keywords _enter
+	authors _enter
+	licence _enter
+	homepage _enter
+	set currently... Y
+	add commonly ignored files... Y
+	would you like to mark this package as private... N
+	
+	Looks good? Y
+
+**********************************************
+
+Si l'on souhaite installer à postério bootstrap-sass afin de mettre à jour les dépendences de  bower.json (--save)
+
+	bower install bootstrap-sass --save
+
+**********************************************
+
+Si il n'existe aucune dépendance physiquement présente dans le projet, grâce aux fichiers .bowerrc et bower.json, il suffira de taper la commande suivante pour que bower rapatrie toutes les dépendances inscrites dans bower.json "dependencies".
+	bower install
+
+**********************************************
+
+Pour compiler sass en css on va utiliser un workflow qui va automatiser les tâches pour générer le fichier css et l'envoyer dans le dossier web. On va utiliser gulp pour compiler le sass et d'autres actions.
+
+1 - On installe gulp
+	npm install -g gulp
+2 - On déclare les dépendances à gulp et va créer un fichier package.json qui laisseront appraître les dépendances du projet.
+	npm init
+	On laisse les valeurs par défaut et comme name ne doit pas comporter de majuscule, on lui attribut le même nom mais en minuscules.
+3 - On installe gulp dans le projet
+	npm install gulp --save-dev
+
+***********************************************
+
+Pour utiliser gulp
+
+1 - on doit créer un fichier gulpfile.js qui servira à appeler différents tâches
+	//On récupère le module gulp
+	var gulp = require('gulp');
+
+	//On créé une tâche test
+	gulp.task('test', function(){
+
+	});
+2 - On test par la commande
+	gulp test
+3 - On récupère un package qui sert à formater des messages .
+	npm install gulp-util --save-dev (--save-dev permet de mettre le fichier package.json à jour)
+
+*************************************************
+
+On enrichi notre gulpfile.js afin de créer et d'updater un fichier css
+
+1 - On créé le répertoire AppBundle/Resources/sass
+2 - On créé les variables paths
+	var resources = './AppBundle/Resources/';
+	var sassDir = resources+'sass/';
+3 - On créé le fichier partial scss (avec un _nom.scss) AppBundle/Resources/sass/variables.scss
+	$icon-font-path: '../fonts/';
+4 - On créé le fichier AppBundle/Resources/sass/main.scss
+	@import 'variables';
+	@import '../bower_components/bootstrap-sass/assets/stylesheets/bootstrap';
+5 - On installe le gulp-sass en mettant à jour package.json
+	npm install gulp-sass --save-dev
+6 - On le déclare dans gulpfile.js
+	var gsass = require('gulp-sass');
+7 - On va pouvoir piper (passe dans un tuyau) le flux
+	gulp.task('styles', function(){
+    		return gulp.src(sassDir+'main.scss')
+            	.pipe(gsass(
+                	{
+                	   	outputstyle: 'nested'
+                	}
+            	).on('error', gsass.logError))
+            	.pipe(gulp.dest('./web/css/'));
+	});
+8 - On génère le répertoire css et le fichier main.css
+	gulp styles
+9 - On créé un fichier AppBundle/Resources/views/index.html
+10 - On créé une nouvelle tâche pour envoyer les fichiers html vers le répertoire web
+	gulp.task('html', function(){
+    		return gulp.src(resources+'/views/**/*.html')
+            		.pipe(gulp.dest('./web/'))
+            		;
+		});
+	
+***************************************************
+
+On veut que les pages se rafraîchissent toutes seules
+
+1 - On installe LiveReload
+	npm install gulp-livereload --save-dev
+2 - On créé la dépendance dans gulpfile.js
+	var livereload = require('gulp-livereload');
+3 - On créé la tâche qui écoute les fichiers dans le répertoire sass
+	gulp.task('watch', function(){
+    		livereload.listen();
+    		gulp.watch(sassDir+'/*.scss', ['styles']);
+	});
+4 - Dans la tâche gulp styles, on ajoute le pipe suivant  :
+	pipe(livereload())
+5 - On lance la tâche
+	gulp watch
+6 - On test en changeant un élément dans AppBundle/Resources/sass/main.scss
+	html {
+    		background-color: red;
+	}
+
+*****************************************************
+
+On souhaite maintenant un fichier qui compresse toutes les valeurs de bootstrap
+
+1 - On copie le fichier partial issue du téléchargement de bootstrap en version sass _bootstrap-variables.sass que le copie dans AppBundle/Resources/sass/_bootstrap-variables.sass
+2 - On le déclare dans AppBundle/Resources/sass/main.scss
+	@import 'bootstrap-variables';
+3 - On rajoute au glupfile.js que l'on souhaite également écouter les fichiers sass (donc celui nommé _bootstrap-variables.sass)
+	gulp.watch([sassDir+'/*.scss', sassDir+'/*.sass'], ['styles']);
+4 - On arrête la tâche et on la relance
+	ctrl+C
+	gulp watch
+	On arrête et on relance le livereload dans le navigateur
+5 - On  fait une tâche qui appelle les tâches de production
+	gulp.task('prod', function(){
+    		gulp.start('styles','html','icons');
+	});
+
+******************************************************
+
+On souhaite écouter avec livereload les pages changées automatiquement
+
+1 - Dans la tâche watch on ajoute un écouteur spécifique
+	gulp.watch(resources+'/views/**/*.html',['html']);
+	
+2 - On précise à la tâche html qu'elle est associée à livereload
+	.pipe(livereload())
+
+Note : On peut donc utiliser la même stratégie pour tous les fichiers de notre choix
+
+******************************************************
+
+La mise en production
+
+1 - On ne distribue pas le dossier bower-components (donc suppression)
+2 - On ne distribue pas le dossier node_modules (donc suppression)
+3 - On ne distribue pas les dossiers publiques (web) si quelqu'un veut travailler sur le projet (donc suppression)
+4 - On fait une installation qui va utiliser le fichier bower.json et récupérer les dépendences
+	bower install
+5 - On demande à nodeJS de récupérer tous les modules et les réinstaller
+	npm install
+6 - On génére les fichiers publiques automatiquement
+	gulp prod
+
+*******************************************************
+
+On ajoute le module d'autopréfixage des propriétés css
+
+1 - On installe le module avec la dépendence dans package.json
+	npm install gulp-autoprefixer --save-dev
+2 - On ajoute au gulpfile
+	var autoprefixer = requires('gulp-autoprefixer'); 
+3 - Dans la tâche styles on indique qu'il faut préfixer automatiquement dans les 3 dernières versions du navigateur
+	.pipe(autoprefixer('last 3 version'));
+4 - On test avec le sass/main.scss
+	.azerty {
+		transition: transform 1s;
+	}
+
+	On fait un gulp styles
+5 - Dans le web/main.css, on obtient
+	.azerty {
+		transition: -webkit-transform 1s;
+		transition: transform 1s;
+		transition: transform 1s; -webkit-transform 1s;
+	}
+
+********************************************************
+
+On ajoute le module pour minifier les css
+
+1 - npm install gulp-minify-css --save-dev	
+2 - var minifyCss = require('gulp-minify-css');
+3 - Après le préfixeur 
+	.pipe(minifyCss())
+
+*********************************************************
+
+On concatène les fichiers javascripts
+
+1 - On créé un nouveau répertoire AppBundle/Resources/js/libs et AppBundle/Resources/js/self
+2 - On ajoute dans self un fichier app.js
+3 - npm install gulp-concat --save-dev
+4 - var concat = require('gulp-concat');
+5 - Dans gulpfile on créé une nouvelle tâche
+	gulp.task('scripts', function(){
+		return gulp.src(
+			[
+				resources+'/bower_components/jquery/dist/jquery.js',
+				resources+'/bower_components/bootstrap-sass/assets/javascripts/bootstrap.js',
+				resources+'/js/**/*.js'
+			]
+		)
+		.pipe(concat('main.js'))
+		.pipe(gulp.dest('./web/js/'));
+	});
+6 - On teste gulp scripts
+
+*******************************************************
+
+On minifie le fichier les fichiers javascript générés
+
+1 - npm install gulp-uglify --save-dev
+2 - var uglify = require('gulp-uglify');
+3 - Dans la tâche scripts et juste avant .pipe(concat('main.js')) on ajoute le pipe :
+	.pipe(uglify())
+4 - On teste
+	gulp scripts
+
+********************************************************
+
+On minifie les fichiers html
+
+1 - npm install gulp-minify-html --save-dev
+2 - var minifyHtml = require('gulp-minify-html');
+3 - Dans la tâche html
+	gulp.task('html', function(){
+		var opts = {
+			conditionals: true,	//Pour ne pas supprimer les commentaires IE
+			spare: true		//Pour ne pas supprimer les attributs redondants
+		};
+    		return gulp.src(resources+'/views/**/*.html')
+			.pipe(minifyHtml(opts))
+            		.pipe(gulp.dest('./web/'))
+			.pipe(livereload())
+            		;
+		});
+
+********************************************************
+
+On optimise la gestion des images
+
+1 - On créé un répertoire AppBundle/Resources/img dans lequel on place des images
+2 - npm install gulp-imagemin --save-dev
+3 - var imagemin = require('gulp-imagemin');
+4 - On créé une tâche image
+	gulp.task('img', function(){
+    		return gulp.src(resources+'/img/**/*.*')
+            		.pipe(imagemin())
+            		.pipe(gulp.dest('./web/img'))
+            		.on('end', function(){
+                	gutil.log(gutil.colors.yellow('La tâche "img" est terminée !'));
+            })
+            ;
+});	
+5 - gulp img
+
+On veut que le poids des images soit optimisé
+
+1 - npm install gulp-imagemin --save-dev
+2 - var imagemin = require('gulp-imagemin');
+3 - On l'ajoute en premier pipe de la tâche image
+	.pipe(imagemin())
+4 - gulp img
+
+On voudrait que les images (ou fichiers) en trop soient supprimés en cas de suppression dans le répertoire d'origine.
+
+1 - npm install del --save-dev
+2 - var del = require('del');
+3 - On créé une tâche dédiée à la suppression des images
+	gulp.task('del:img', function(){
+    		return del(['./web/img/**/*']);
+	});
+4 - On passe cette tâche en argument à la tâche img
+	gulp.task('img',['del:img'], function(){
+	...
+5 - gulp img
+
+************************************************************
+
+Spécifier des actions en mode dev ou prod
+
+1 - npm install minimist --save-dev
+2 - La variable indique que minimist récupère l'argument n°2 dans les paramètres
+	var options = require('minimist')(process.argv.slice(2); 
+3 - Dans la tâche on apporte une condition ternaire par exemple. Ici gutil.noop() sert à annuler le pipe si la condition est à false
+	.pipe(options.prod ? minifyCss() : gutil.noop())
+4 - On teste
+	gulp styles --dev (ici retourne false donc ne lance pas minifyCss)
+	gulp styles --prod (ici retourne true donc lance minifyCss)
+
+*************************************************************
+
+Dans un nouveau projet
+
+1 - On copie les fichiers package.json / gulpfile.js / bower.json / .bowerrc
+2 - On lance les commandes
+	bower install
+	npm install
+3 - On peut ensuite travailler avec les commandes. C'est donc très rapide de redéployer un nouveau projet.
